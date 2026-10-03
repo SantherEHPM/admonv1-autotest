@@ -83,9 +83,20 @@ def _ensure_classpath():
     return CP_FILE.read_text().strip()
 
 
+def _refresh_resources():
+    """Recopia src/main/resources a target/classes (el backend corre desde
+    target/classes; sin esto sirve seeds/copias viejas). Solo toca target/
+    (ignorado por git), nunca fuentes versionadas."""
+    subprocess.run(
+        ["./mvnw", "-q", "process-resources"],
+        cwd=str(BACKEND_DIR), capture_output=True, text=True, timeout=300,
+    )
+
+
 def start_backend(timeout=180):
     if port_open():
         return "already-up"
+    _refresh_resources()
     cp = _ensure_classpath()
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     log = open(LOG_FILE, "a")

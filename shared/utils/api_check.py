@@ -29,8 +29,8 @@ def api_login(base_url, email, password, timeout=10):
         return {"performed": True, "httpStatus": None, "ms": int((time.time() - start) * 1000), "ok": False, "detail": str(e)[:300]}
 
 
-def api_list_applications(base_url, token, timeout=10):
-    url = f"{api_base(base_url)}/applications"
+def api_list_applications(base_url, token, timeout=10, size=100):
+    url = f"{api_base(base_url)}/applications?page=0&size={size}"
     start = time.time()
     try:
         r = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
@@ -39,7 +39,22 @@ def api_list_applications(base_url, token, timeout=10):
             return {"performed": True, "httpStatus": r.status_code, "ms": ms, "ok": False, "detail": r.text[:300]}
         data = r.json().get("data", [])
         items = data if isinstance(data, list) else data.get("content", data)
-        return {"performed": True, "httpStatus": r.status_code, "ms": ms, "ok": True, "detail": f"{len(items)} postulaciones", "items": items}
+        total = data if isinstance(data, int) else (data.get("totalElements", len(items)) if isinstance(data, dict) else len(items))
+        return {"performed": True, "httpStatus": r.status_code, "ms": ms, "ok": True, "detail": f"{len(items)} postulaciones", "items": items, "total": total}
+    except Exception as e:
+        return {"performed": True, "httpStatus": None, "ms": int((time.time() - start) * 1000), "ok": False, "detail": str(e)[:300]}
+
+
+def api_get_application(base_url, token, app_id, timeout=10):
+    url = f"{api_base(base_url)}/applications/{app_id}"
+    start = time.time()
+    try:
+        r = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
+        ms = int((time.time() - start) * 1000)
+        if not r.ok:
+            return {"performed": True, "httpStatus": r.status_code, "ms": ms, "ok": False, "detail": r.text[:300]}
+        return {"performed": True, "httpStatus": r.status_code, "ms": ms, "ok": True,
+                "detail": f"detalle {app_id}", "data": r.json().get("data")}
     except Exception as e:
         return {"performed": True, "httpStatus": None, "ms": int((time.time() - start) * 1000), "ok": False, "detail": str(e)[:300]}
 

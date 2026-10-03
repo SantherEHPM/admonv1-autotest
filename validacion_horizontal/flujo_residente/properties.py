@@ -27,6 +27,9 @@ SELECTORS = {
     "summary_finish": "application-summary-finish-button",
     "application_card_prefix": "application-card-",
     "applications_empty_button": "applications-empty-view-convocations-button",
+    "application_cancel_button": "application-cancel-button",
+    "application_cancel_modal": "application-cancel-modal",
+    "application_cancel_confirm": "application-cancel-confirm-button",
 }
 
 DEFAULT_BASE_URL = "https://aes-puj.duckdns.org"
@@ -77,6 +80,14 @@ STEPS = {
     "verificar_error_peso": {"desc": "Verificar error de tamaño máximo 2MB", "backend": False},
     "verificar_bloqueo_incompleto": {"desc": "Verificar Confirmar deshabilitado con docs incompletos", "backend": False},
     "verificar_bloqueo_sin_docs": {"desc": "Verificar Confirmar deshabilitado sin documentos", "backend": False},
+    "abrir_detalle_postulacion": {"desc": "Abrir el detalle de la postulación", "backend": True, "endpoint": "GET /api/applications/:id"},
+    "pulsar_cancelar_postulacion": {"desc": "Click en Cancelar postulación y verificar modal", "backend": False},
+    "confirmar_cancelacion": {"desc": "Confirmar cancelación y verificar estado Cancelada", "backend": True, "endpoint": "PATCH /api/applications/:id/cancel"},
+    "verificar_cancelacion_api": {"desc": "Verificar por API que quedó CANCELLED", "backend": True, "endpoint": "GET /api/applications/:id"},
+    "verificar_estado_cancelada_lista": {"desc": "Verificar insignia Cancelada en la lista", "backend": True, "endpoint": "GET /api/applications"},
+    "abrir_mis_postulaciones": {"desc": "Abrir Mis Postulaciones (GET /api/applications)", "backend": True, "endpoint": "GET /api/applications"},
+    "obtener_postulaciones_api": {"desc": "Listar postulaciones por API directa", "backend": True, "endpoint": "POST /api/auth/login + GET /api/applications"},
+    "verificar_titularidad_lista": {"desc": "Verificar que lo listado corresponde al usuario (UI vs API)", "backend": False},
 }
 
 SCENARIOS = {
@@ -120,6 +131,16 @@ SCENARIOS = {
         "objective": "Comprobar que sin cargar ningún documento el botón Confirmar está deshabilitado.",
         "steps": ["reiniciar_backend", "reiniciar_frontend", "abrir_login", "escribir_email", "escribir_password", "pulsar_ingresar", "verificar_ingreso", "abrir_convocatorias", "pulsar_ver_detalles", "verificar_detalle", "pulsar_registrar", "pulsar_continuar", "verificar_bloqueo_sin_docs"],
     },
+    "EUV_10": {
+        "name": "Listado corresponde al usuario logueado", "collection": "PostulacionAConvocatoria",
+        "objective": "Comprobar que Mis Postulaciones muestra exactamente las postulaciones del usuario autenticado.",
+        "steps": ["reiniciar_backend", "reiniciar_frontend", "abrir_login", "escribir_email", "escribir_password", "pulsar_ingresar", "verificar_ingreso", "abrir_mis_postulaciones", "obtener_postulaciones_api", "verificar_titularidad_lista"],
+    },
+    "EUV_11": {
+        "name": "Cancelar una postulación", "collection": "PostulacionAConvocatoria",
+        "objective": "Comprobar que una postulación REGISTERED se cancela con confirmación y queda Cancelada en UI, API y lista.",
+        "steps": ["reiniciar_backend", "reiniciar_frontend", "abrir_login", "escribir_email", "escribir_password", "pulsar_ingresar", "verificar_ingreso", "abrir_convocatorias", "pulsar_ver_detalles", "verificar_detalle", "pulsar_registrar", "pulsar_continuar", "cargar_licencia_transito", "cargar_soat", "cargar_licencia_conduccion", "pulsar_confirmar", "verificar_resumen", "abrir_mis_postulaciones", "abrir_detalle_postulacion", "pulsar_cancelar_postulacion", "confirmar_cancelacion", "verificar_cancelacion_api", "verificar_estado_cancelada_lista"],
+    },
     "EUV_09": {
         "name": "Postulación usando todos los tooltips", "collection": "PostulacionAConvocatoria",
         "objective": "Comprobar que cada ayuda contextual se abre con su texto y completar la postulación usándolas.",
@@ -161,6 +182,16 @@ EUV_PRODUCT_ELEMENTS = {
     "EUV_08": [
         {"vista": "Casos de Uso", "arbol": "Gestión Postulaciones", "elemento": "CU-03 Registrar postulación - sin docs", "tipo": "CasoUso"},
         {"vista": "Regla", "arbol": "Documento", "elemento": "RN-04 Documentos obligatorios completos", "tipo": "Regla"},
+    ],
+    "EUV_10": [
+        {"vista": "Casos de Uso", "arbol": "Gestión Postulaciones", "elemento": "CU-04 Consultar postulaciones", "tipo": "CasoUso"},
+        {"vista": "Semántica", "arbol": "Postulación", "elemento": "Postulación", "tipo": "Entidad"},
+        {"vista": "No Funcional", "arbol": "Seguridad", "elemento": "RNF-SE-AU-01 Solo datos del usuario autenticado", "tipo": "RNF"},
+    ],
+    "EUV_11": [
+        {"vista": "Casos de Uso", "arbol": "Gestión Postulaciones", "elemento": "CU-05 Cancelar postulación", "tipo": "CasoUso"},
+        {"vista": "Regla", "arbol": "Postulación", "elemento": "RN-05 Solo REGISTERED del creador en fechas de convocatoria", "tipo": "Regla"},
+        {"vista": "Semántica", "arbol": "Postulación", "elemento": "Postulación", "tipo": "Entidad"},
     ],
     "EUV_09": [
         {"vista": "Casos de Uso", "arbol": "Gestión Postulaciones", "elemento": "CU-03 Registrar postulación - tooltips", "tipo": "CasoUso"},

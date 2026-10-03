@@ -302,6 +302,118 @@ def verificar_lista_postulaciones(driver, base_url, app_number=None, min_count=1
             assert any(app_number in c.text for c in cards), "Número no visible en lista"
 
 
+def abrir_mis_postulaciones(driver, base_url):
+    with track("abrir_mis_postulaciones", backend=True, endpoint="GET /api/applications"):
+        driver.get(f"{base_url}/mis-postulaciones")
+        WebDriverWait(driver, 10).until(
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, "[data-testid^='application-card-']")) > 0
+            or "No tiene postulaciones" in d.page_source
+        )
+        time.sleep(0.6)
+        return driver.find_elements(By.CSS_SELECTOR, "[data-testid^='application-card-']")
+
+
+def obtener_postulaciones_api(base_url, env, api_check_result):
+    with track("obtener_postulaciones_api", backend=True, endpoint="POST /api/auth/login + GET /api/applications"):
+        if env == "prod":
+            api_check_result.update(api_check.skipped_api())
+            return []
+        login_r = api_check.api_login(base_url, TEST_USER["email"], TEST_USER["password"])
+        assert login_r["ok"], f"Login API falló: {login_r['detail']}"
+        note_backend_ms(login_r["ms"])
+        list_r = api_check.api_list_applications(base_url, login_r["token"])
+        assert list_r["ok"], f"Listado API falló: {list_r['detail']}"
+        note_backend_ms(list_r["ms"])
+        items = list_r.get("items", [])
+        api_check_result.update({**list_r, "detail": f"{len(items)} postulaciones del usuario"})
+        return items
+
+
+def verificar_titularidad_lista(driver, api_items, solo_ui=False):
+    """Cruza lo listado en UI con la API: mismos applicationNumber y un solo residentId."""
+    with track("verificar_titularidad_lista"):
+        cards = driver.find_elements(By.CSS_SELECTOR, "[data-testid^='application-card-']")
+        assert cards, "Sin tarjetas en Mis Postulaciones"
+        if solo_ui:
+            return
+        ui_numbers = set()
+        for c in cards:
+            try:
+                ui_numbers.add(c.find_element(By.CSS_SELECTOR, ".app-row-number").text.strip())
+            except Exception:
+                ui_numbers.add(c.text.strip().split("\n")[0])
+        api_numbers = {str(it.get("applicationNumber")) for it in api_items}
+        assert ui_numbers == api_numbers, f"UI {ui_numbers} != API {api_numbers}"
+        residents = {it.get("residentId") for it in api_items}
+        assert len(residents) == 1, f"Hay postulaciones de varios residentes: {residents}"
+
+
+# ---------------------------------------------------------------- cancelación
+def abrir_detalle_postulacion(driver, app_id):
+    with track("abrir_detalle_postulacion", backend=True, endpoint="GET /api/applications/:id"):
+        el = driver.find_element(By.CSS_SELECTOR, f"[data-testid='{SELECTORS['application_card_prefix']}{app_id}']")
+        driver.execute_script("arguments[0].click();", el)
+        WebDriverWait(driver, 10).until(lambda d: f"/applications/{app_id}" in d.current_url)
+        time.sleep(0.6)
+
+
+def tiene_boton_cancelar(driver):
+    return bool(driver.find_elements(By.CSS_SELECTOR, "[data-testid='application-cancel-button']"))
+
+
+def pulsar_cancelar_postulacion(driver, intentos=3):
+    with track("pulsar_cancelar_postulacion"):
+        for i in range(intentos):
+            btn = driver.find_element(By.CSS_SELECTOR, "[data-testid='application-cancel-button']")
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
+            time.sleep(0.4)
+            driver.execute_script("arguments[0].click();", btn)
+            try:
+                WebDriverWait(driver, 5).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, "[data-testid='application-cancel-modal']"))
+                )
+                time.sleep(0.5)
+                return
+            except Exception:
+                if i == intentos - 1:
+                    raise AssertionError("El modal de cancelación no apareció")
+                time.sleep(1.0)
+
+
+def confirmar_cancelacion(driver):
+    with track("confirmar_cancelacion", backend=True, endpoint="PATCH /api/applications/:id/cancel"):
+        btn = driver.find_element(By.CSS_SELECTOR, "[data-testid='application-cancel-confirm-button']")
+        driver.execute_script("arguments[0].click();", btn)
+        WebDriverWait(driver, 15).until(lambda d: "Cancelada" in d.page_source)
+        time.sleep(0.6)
+
+
+def verificar_cancelacion_api(base_url, env, api_check_result, app_id):
+    with track("verificar_cancelacion_api", backend=True, endpoint="GET /api/applications/:id"):
+        if env == "prod":
+            api_check_result.update(api_check.skipped_api())
+            return
+        login_r = api_check.api_login(base_url, TEST_USER["email"], TEST_USER["password"])
+        assert login_r["ok"], f"Login API falló: {login_r['detail']}"
+        note_backend_ms(login_r["ms"])
+        det_r = api_check.api_get_application(base_url, login_r["token"], app_id)
+        assert det_r["ok"], f"Detalle API falló: {det_r['detail']}"
+        note_backend_ms(det_r["ms"])
+        assert (det_r["data"] or {}).get("status") == "CANCELLED", f"Estado API: {(det_r['data'] or {}).get('status')}"
+        api_check_result.update({**det_r, "detail": f"Postulación {app_id} CANCELLED en API"})
+
+
+def verificar_estado_cancelada_lista(driver, base_url):
+    with track("verificar_estado_cancelada_lista", backend=True, endpoint="GET /api/applications"):
+        driver.get(f"{base_url}/mis-postulaciones")
+        WebDriverWait(driver, 10).until(
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, "[data-testid^='application-card-']")) > 0
+            or "No tiene postulaciones" in d.page_source
+        )
+        time.sleep(0.6)
+        assert "Cancelada" in driver.page_source, "Ninguna tarjeta muestra estado Cancelada"
+
+
 # ---------------------------------------------------------------- tooltips
 def _textos_tooltips(driver):
     pares = []

@@ -32,7 +32,8 @@ admonv1-autotest/
             ├── dc_ingreso/         # EUV_01 ingreso correcto, EUV_02 ingreso incorrecto
             └── dc_postulacion/     # EUV_03 normal, EUV_04 duplicado, EUV_05 formato,
                                    # EUV_06 peso, EUV_07 incompletos, EUV_08 sin docs,
-                                   # EUV_09 tooltips
+                                   # EUV_09 tooltips, EUV_10 titularidad del listado,
+                                   # EUV_11 cancelar postulación
 ```
 
 ### Reglas aplicadas
@@ -85,7 +86,7 @@ python3 -m pytest -v --headless --env local --base-url http://localhost:5173
 Notas:
 
 - Sin `~/.aws/credentials` los escenarios con subida de documentos
-  (EUV_03/04/07/09) fallan; el resto pasa igual.
+  (EUV_03/04/07/09/11) fallan; el resto pasa igual.
 - Sin git en la carpeta, la columna "rama" del dashboard sale vacía (no rompe nada).
 - Si GAS no responde, el resultado queda en `reports/pending.json` y la
   prueba igual se califica.
